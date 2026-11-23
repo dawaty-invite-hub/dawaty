@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>دعوتي | تبادل الدعوات</title>
+<link rel="stylesheet" href="style.css"></head>
+<body>
+<header><div class="logo">✦ دعوتي</div><p>تبادل دعوات بين الناس، بنفس الفكرة: خد دعوة، وبعد ما تدخل ضيف دعوتك.</p></header>
+<main>
+<section class="stats" id="stats">
+  <div><b id="s-live">…</b><span>لينكات شغالة</span></div>
+  <div><b id="s-seats">…</b><span>أماكن فاضية</span></div>
+  <div><b id="s-taken">…</b><span>اتاخدت</span></div>
+  <div><b id="s-contrib">…</b><span>مساهمين</span></div>
+</section>
+<section class="card comeback" id="comeback" hidden>
+  <h2>رجعت 🎉</h2>
+  <p class="muted">عدت ساعة من أول ما خدت الدعوة. لو دخلت، ضيف لينكك واطلع لوحة الشرف.</p>
+  <button id="comeback-go" class="primary">ضيف لينكي</button>
+</section>
+<section class="card">
+  <h2>عايز دعوة؟</h2>
+  <p class="muted">كل لينك بيخدم لحد 10 أشخاص، وبنوزّع عليك لينك شغال.</p>
+  <button id="take" class="primary">هات دعوة</button>
+  <div id="result" class="result" hidden></div>
+</section>
+<section class="card">
+  <h2>عندك دعوات؟</h2>
+  <p class="muted">بعد ما تدخل، حط لينكك هنا عشان غيرك ياخد منه.</p>
+  <form id="add" autocomplete="off">
+    <input id="url" type="url" inputmode="url" placeholder="https://…" required dir="ltr">
+    <input id="name" maxlength="24" placeholder="اسمك في لوحة الشرف (اختياري)">
+    <input name="website" id="website" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true">
+    <button class="primary" type="submit">ضيف لينكي</button>
+  </form>
+  <div id="added" class="result" hidden></div>
+</section>
+<section class="card" id="boardcard" hidden><h2>لوحة الشرف</h2><ol id="board"></ol><p class="muted small">الترتيب بعدد الناس اللي خدت من لينكاتهم فعلاً.</p></section>
+</main>
+<footer>
+  <p>موقع مجتمعي مستقل. مش تابع لـ Instinct ولا مدعوم منها، وأسماء المنتجات تخص أصحابها.</p>
+  <p>اللينكات بيضيفها مستخدمين. افتحها على مسؤوليتك ومتشاركش بيانات حساسة.</p>
+</footer>
+<script src="app.js"></script></body></html>
