@@ -14,16 +14,28 @@ $('take').onclick = async () => {
   const r = await post('take', { own: (ls('mine') || {}).id });
   $('take').disabled = false;
   if (!r.ok) return msg($('result'), r.error, true);
-  ls('lastTake', { id: r.id, at: Date.now() });
+  ls('lastTake', { id: r.id, url: r.url, at: Date.now() });
+  showTaken(); stats();
+};
+function showTaken() {
+  const t = ls('lastTake'); if (!t || !t.url) return;
   const box = document.createElement('div'), a = document.createElement('a');
-  a.href = r.url; a.textContent = r.url; a.target = '_blank'; a.rel = 'noopener noreferrer nofollow';
+  a.href = t.url; a.target = '_blank'; a.rel = 'noopener noreferrer nofollow'; a.textContent = t.url;
   const row = document.createElement('div'); row.className = 'row';
-  const bad = document.createElement('button'); bad.className = 'ghost danger'; bad.textContent = 'اللينك مش شغال';
-  bad.onclick = async () => { const x = await post('report', { id: r.id }); bad.disabled = true; bad.textContent = x.ok ? 'اتبلّغ عنه. شكراً' : x.error; stats(); };
+  const bad = document.createElement('button'); bad.className = 'ghost danger';
+  if (t.reported) { bad.disabled = true; bad.textContent = 'اتبلّغ عنه. شكراً'; }
+  else {
+    bad.textContent = 'اللينك مش شغال';
+    bad.onclick = async () => {
+      const x = await post('report', { id: t.id }); bad.disabled = true;
+      if (x.ok) { ls('lastTake', { ...ls('lastTake'), reported: true }); bad.textContent = 'اتبلّغ عنه. شكراً'; } else bad.textContent = x.error;
+      stats();
+    };
+  }
   row.append(bad); box.append(a, row);
   box.append(nextStep());
-  msg($('result'), box); stats();
-};
+  msg($('result'), box);
+}
 
 function goAdd() {
   $('add').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -92,4 +104,4 @@ function showMine(text) {
   b.onclick = async () => { const x = await post('remove', m); if (x.ok) { localStorage.removeItem('mine'); msg($('added'), 'اتشال.'); stats(); } else msg($('added'), x.error, true); };
   box.append(p, b); msg($('added'), box);
 }
-showMine(); comeback(); stats(); setInterval(stats, 30000);
+showTaken(); showMine(); comeback(); stats(); setInterval(stats, 30000);
