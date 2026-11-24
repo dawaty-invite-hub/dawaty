@@ -1,6 +1,7 @@
 const $ = id => document.getElementById(id), t0 = Date.now();
 const post = (p, b) => fetch('/api/' + p, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(b) }).then(async r => ({ ok: r.ok, ...(await r.json()) }));
 const ls = (k, v) => v === undefined ? JSON.parse(localStorage.getItem(k) || 'null') : localStorage.setItem(k, JSON.stringify(v));
+const mineList = () => { const m = ls('mine'); return Array.isArray(m) ? m : m ? [m] : []; };
 const ar = n => Number(n).toLocaleString('ar-EG');
 function msg(el, html, err) { el.hidden = false; el.className = 'result' + (err ? ' err' : ''); el.replaceChildren(); if (typeof html === 'string') el.textContent = html; else el.append(html); }
 async function stats() {
@@ -11,7 +12,7 @@ async function stats() {
 }
 $('take').onclick = async () => {
   $('take').disabled = true;
-  const r = await post('take', { own: (ls('mine') || {}).id });
+  const r = await post('take', { own: mineList().map(m => m.id) });
   $('take').disabled = false;
   if (!r.ok) return msg($('result'), r.error, true);
   ls('lastTake', { id: r.id, url: r.url, at: Date.now() });
@@ -86,22 +87,32 @@ async function remind(btn, status) {
 function comeback() {
   const t = ls('lastTake'); if (!t || !t.at) return;
   if (Date.now() - t.at < 3600000) return;
-  const m = ls('mine'); if (m && m.addedAt && m.addedAt > t.at) return;
+  if (mineList().some(m => m.addedAt > t.at)) return;
   $('comeback').hidden = false;
 }
 $('comeback-go').onclick = goAdd;
 $('add').onsubmit = async e => {
   e.preventDefault();
-  const r = await post('add', { url: $('url').value, name: $('name').value, website: $('website').value, t: t0 });
+  const urls = $('url').value.split(/[\s,]+/).filter(Boolean);
+  const r = await post('add', { urls, name: $('name').value, website: $('website').value, t: t0 });
   if (!r.ok) return msg($('added'), r.error, true);
-  if (r.id) ls('mine', { id: r.id, secret: r.secret, addedAt: Date.now() });
-  $('add').reset(); stats(); showMine('اتضاف لينكك. شكراً!');
+  if (r.added) ls('mine', mineList().concat(r.added.map(x => ({ ...x, addedAt: Date.now() }))));
+  $('add').reset(); stats();
+  let note = r.added ? 'اتضاف ' + ar(r.added.length) + (r.added.length > 1 ? ' لينكات. شكراً!' : ' لينك. شكراً!') : 'اتضاف لينكك. شكراً!';
+  if (r.dup) note += ' (' + ar(r.dup) + ' متضاف قبل كده)';
+  if (r.full) note += ' (وصلت للحد الأقصى، الباقي مااتضافش)';
+  showMine(note);
 };
 function showMine(text) {
-  const m = ls('mine'); if (!m) return;
-  const box = document.createElement('div'), p = document.createElement('p'); p.textContent = text || 'لينكك متضاف.'; p.style.margin = '0 0 10px';
-  const b = document.createElement('button'); b.className = 'ghost danger'; b.textContent = 'شيل لينكي (مبقاش شغال)';
-  b.onclick = async () => { const x = await post('remove', m); if (x.ok) { localStorage.removeItem('mine'); msg($('added'), 'اتشال.'); stats(); } else msg($('added'), x.error, true); };
+  const list = mineList(); if (!list.length) return;
+  const box = document.createElement('div'), p = document.createElement('p'); p.textContent = text || (list.length > 1 ? 'عندك ' + ar(list.length) + ' لينكات متضافة.' : 'لينكك متضاف.'); p.style.margin = '0 0 10px';
+  const b = document.createElement('button'); b.className = 'ghost danger'; b.textContent = list.length > 1 ? 'شيل كل لينكاتي (مبقتش شغالة)' : 'شيل لينكي (مبقاش شغال)';
+  b.onclick = async () => {
+    b.disabled = true; let left = [];
+    for (const m of list) { const x = await post('remove', m); if (!x.ok && x.error && !/مش لاقي/.test(x.error)) left.push(m); }
+    ls('mine', left); if (!left.length) localStorage.removeItem('mine');
+    msg($('added'), left.length ? 'حصلت مشكلة، جرب تاني.' : 'اتشالت.', !!left.length); stats();
+  };
   box.append(p, b); msg($('added'), box);
 }
 showTaken(); showMine(); comeback(); stats(); setInterval(stats, 30000);
