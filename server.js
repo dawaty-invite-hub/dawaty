@@ -6,6 +6,9 @@ const SALT = process.env.SALT || 'change-me-in-production';
 const ALLOWED_HOSTS = (process.env.ALLOWED_HOSTS || 'app.instinct.com').split(',').map(s => s.trim().toLowerCase()).filter(Boolean); // default: only the official Instinct invite host; set ALLOWED_HOSTS env to override
 const CAP = 10;            // people one link can serve
 const REPORTS_TO_REMOVE = 3; // distinct reporters needed to auto-remove
+const MAX_ACTIVE = 10;      // active links per person (IP)
+const MAX_PER_ADD = 10;     // links per submission
+const MAX_ADDS_DAY = 15;    // links added per day per IP
 const MIN_FORM_MS = 2500;  // bots submit faster than this
 let db = { links: [], takes: [] };
 const DBURL = process.env.DATABASE_URL;
@@ -64,15 +67,15 @@ function validUrl(s) {
 }
 const cleanName = s => typeof s === 'string' ? s.replace(/[<>&"'`\u0000-\u001f]/g, '').trim().slice(0, 24) : '';
 
-function body(r) { return new Promise((ok, no) => { let b = ''; r.on('data', c => { b += c; if (b.length > 5000) { r.destroy(); no(); } }); r.on('end', () => { try { ok(JSON.parse(b || '{}')); } catch { no(); } }); }); }
+function body(r) { return new Promise((ok, no) => { let b = ''; r.on('data', c => { b += c; if (b.length > 8000) { r.destroy(); no(); } }); r.on('end', () => { try { ok(JSON.parse(b || '{}')); } catch { no(); } }); }); }
 const send = (res, code, o) => { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }); res.end(JSON.stringify(o)); };
 
 const api = {
   async stats() { return [200, { ...stats(), cap: CAP, board: board() }]; },
   async take(r, ip, b) {
     if (limited(ip, 'take', 3, 3600000)) return [429, { error: 'استنى شوية وجرب تاني (حد أقصى 3 لينكات في الساعة).' }];
-    const mine = (b.own || '').toString();
-    const pool = open().filter(l => l.id !== mine && l.ipHash !== ip).sort((a, c) => a.uses - c.uses || a.created - c.created);
+    const mine = (Array.isArray(b.own) ? b.own : [b.own]).map(x => String(x || ''));
+    const pool = open().filter(l => !mine.includes(l.id) && l.ipHash !== ip).sort((a, c) => a.uses - c.uses || a.created - c.created);
     // rotate: fill the oldest-served link first so each one reaches its 10 quickly, then move on
     const l = pool.sort((a, c) => c.uses - a.uses || a.created - c.created)[0];
     if (!l) return [404, { error: 'مفيش لينكات متاحة دلوقتي. جرب بعد شوية أو ضيف لينكك.' }];
@@ -82,14 +85,20 @@ const api = {
   async add(r, ip, b) {
     if (b.website) return [200, { ok: true }]; // honeypot: pretend success
     if (now() - (+b.t || 0) < MIN_FORM_MS) return [400, { error: 'بسرعة كده؟ جرب تاني.' }];
-    if (limited(ip, 'add', 3, 86400000)) return [429, { error: 'وصلت للحد اليومي للإضافة.' }];
-    const url = validUrl(b.url);
-    if (!url) return [400, { error: 'اللينك مش صالح. لازم يبدأ بـ https://' + (ALLOWED_HOSTS.length ? ' ومن موقع مسموح.' : '') }];
-    if (db.links.some(l => l.url === url && !l.removed)) return [409, { error: 'اللينك ده متضاف قبل كده.' }];
-    if (db.links.filter(l => l.ipHash === ip && !l.removed).length >= 2) return [429, { error: 'عندك لينكين شغالين بالفعل.' }];
-    const l = { id: crypto.randomBytes(5).toString('hex'), url, name: cleanName(b.name), ipHash: ip, uses: 0, created: now(), reports: [], removed: false, secret: crypto.randomBytes(12).toString('hex') };
-    db.links.push(l); save();
-    return [200, { ok: true, id: l.id, secret: l.secret }];
+    const raw = Array.isArray(b.urls) ? b.urls : [b.url];
+    const urls = [...new Set(raw.slice(0, MAX_PER_ADD).map(x => validUrl(x)).filter(Boolean))];
+    if (!urls.length) return [400, { error: 'اللينك مش صالح. لازم يبدأ بـ https://' + (ALLOWED_HOSTS.length ? ' ومن موقع مسموح.' : '') }];
+    const added = []; let dup = 0, full = false;
+    for (const url of urls) {
+      if (db.links.some(l => l.url === url && !l.removed)) { dup++; continue; }
+      if (db.links.filter(l => l.ipHash === ip && !l.removed).length >= MAX_ACTIVE) { full = true; break; }
+      if (limited(ip, 'add', MAX_ADDS_DAY, 86400000)) { full = true; break; }
+      const l = { id: crypto.randomBytes(5).toString('hex'), url, name: cleanName(b.name), ipHash: ip, uses: 0, created: now(), reports: [], removed: false, secret: crypto.randomBytes(12).toString('hex') };
+      db.links.push(l); added.push({ id: l.id, secret: l.secret });
+    }
+    if (added.length) save();
+    if (!added.length) return dup && !full ? [409, { error: 'اللينك ده متضاف قبل كده.' }] : [429, { error: 'وصلت للحد الأقصى (' + MAX_ACTIVE + ' لينكات شغالة).' }];
+    return [200, { ok: true, added, dup, full, id: added[0].id, secret: added[0].secret }];
   },
   async report(r, ip, b) {
     if (limited(ip, 'report', 10, 3600000)) return [429, { error: 'كتير أوي.' }];
