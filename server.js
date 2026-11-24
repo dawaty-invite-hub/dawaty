@@ -3,7 +3,7 @@ const http = require('http'), fs = require('fs'), path = require('path'), crypto
 const PORT = process.env.PORT || 3000;
 const DATA = process.env.DATA_FILE || path.join(__dirname, 'data.json');
 const SALT = process.env.SALT || 'change-me-in-production';
-const ALLOWED_HOSTS = (process.env.ALLOWED_HOSTS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean); // empty = any https host
+const ALLOWED_HOSTS = (process.env.ALLOWED_HOSTS || 'app.instinct.com').split(',').map(s => s.trim().toLowerCase()).filter(Boolean); // default: only the official Instinct invite host; set ALLOWED_HOSTS env to override
 const CAP = 10;            // people one link can serve
 const REPORTS_TO_REMOVE = 3; // distinct reporters needed to auto-remove
 const MIN_FORM_MS = 2500;  // bots submit faster than this
