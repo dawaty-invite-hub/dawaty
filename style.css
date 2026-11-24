@@ -10,8 +10,8 @@ main{max-width:520px;margin:0 auto;padding:12px 14px;display:grid;gap:14px}
 .stats b{display:block;font-size:20px;color:var(--acc2)}.stats span{font-size:11px;color:var(--mut)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px}
 h2{margin:0 0 4px;font-size:18px}.muted{color:var(--mut);font-size:14px;margin:0 0 12px}.small{font-size:12px;margin:10px 0 0}
-input{width:100%;padding:13px;margin-bottom:10px;border-radius:12px;border:1px solid var(--line);background:#0f1222;color:var(--txt);font:inherit}
-input:focus{outline:2px solid var(--acc)}
+input,textarea{width:100%;padding:13px;margin-bottom:10px;border-radius:12px;border:1px solid var(--line);background:#0f1222;color:var(--txt);font:inherit}
+input:focus,textarea:focus{outline:2px solid var(--acc)}
 .hp{position:absolute;width:0;height:0;padding:0;margin:0;border:0;opacity:0;pointer-events:none}
 button{font:inherit;cursor:pointer;border:0;border-radius:12px;padding:13px 16px}
 .primary{width:100%;background:linear-gradient(90deg,var(--acc),#5b8cff);color:#fff;font-weight:700}
